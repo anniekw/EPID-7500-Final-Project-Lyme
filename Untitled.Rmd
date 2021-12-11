@@ -1,0 +1,349 @@
+---
+title: "Projection of The Lyme Disease Epidemic"
+author: "Annie Kwok"
+header-includes:
+  - \usepackage{float}
+date: "12/10/2021"
+output: 
+  html_document:
+    toc: true
+    toc_depth: 2
+    toc_float:
+      collapsed: true
+      smooth_scroll: true
+---
+## Introduction
+
+Lyme disease was initially described and identified in 1977 due to a peculiar epidemic of pediatric inflammatory arthritis in the Lyme, Connecticut area. The infectious agent for this mysterious disease, a bacteria called Borrelia burgdorferi, was later isolated in 1981 and proven to be the spirochetal etiology of the illness after being cultured from patients with early Lyme disease (1). Lyme disease is a zoonotic, vector-borne disease that is transmitted by certain Ixodid ticks (2). Transmission occurs when the ticks feed on an infected animal and acquire B. burgdorferi during any stage of their lifecycle, though transmission is more likely in the nymphal stage, and transmit the bacteria to a human during a subsequent feeding (3). 
+
+The most common sign of Lyme disease is erythema migrans, a small erythematous papule or macule that emerges at the site of the tick bite and subsequently enlarges. This lesion can be asymptomatic, mildly pruritic, painful, or mildly disseminated to other sites on the skin. Other signs and symptoms of Lyme disease include fever, neurologic conditions, carditis, meningitis, and arthritis. Symptoms of Lyme disease can be disabling and persist for 6 months or longer (4).
+
+## The Problem
+
+Lyme disease is now the most commonly reported vector-borne disease in the United States. The majority of cases occur in New England and the mid-Atlantic states, with other foci being in northern midwestern states such as Wisconsin and Minnesota (5). Since national surveillance with the use of a standardized case definition was instituted in 1991, the number of reported cases has been increasing steadily each year (6). In 1992, 10,000 cases were being reported to the CDC annually, compared to about 30,000 cases per year being reported now. However, recent estimates by the CDC indicate a much higher amount of individuals actually get Lyme disease each year in the United States, approximately 476,000 people (7). This indicates a gap in the surveillance, detection, diagnosis, and reporting process. 
+
+Additionally, the geographical spread of Lyme disease within the past few years is alarming, given that the worldwide burden of this disease has increased and is expanding into regions and countries where it was not reported previously (8). Due to the effects of climate change on the spread of Ixodid ticks and reservoir hosts, the geographic incidence of Lyme Disease in the United States has continued to expand northward and into the areas surrounding endemic centers (9). Despite these concerning issues, Lyme disease research is underwhelmingly and disproportionately funded in comparison to other diseases (10). 
+
+A coordinated and robust effort must be made across a spectrum of public health agencies to reinforce and strengthen surveillance efforts, and mitigate the contributions of climate to changes in disease risk. The following model aims to predict and project the incidence of Lyme disease within the next several years to further emphasize the need for proactive intervention against disease transmission and incidence. 
+
+## Methods
+
+The CDC developed a public use data set providing the number of reported cases by county for the years 2000-2019. More recent case counts are not publicly available at this time, most likely due to the negative effects of COVID-19 on disease surveillance and reporting. The cumulative incidence of Lyme Disease was calculated for each state during this time period. To account for the differences in population density, state population estimates were retrieved from the United States Census Bureau and used to calculate cumulative incident cases per person in each state. The top three states with the highest amount of cumulative incident cases per person were selected for the analysis. 
+
+Given the complex nature of Lyme disease transmission and dynamics, R0 and serial intervals have not been widely agreed upon in literature. However, many various statistical methods have previously been used to forecast infectious disease incidence without the use of R0 and serial intervals, such as regression and exponential smoothing, or autoregressive integrated moving average models. Decomposition methods (regression and exponential smoothing) are typically the most traditional methods when analyzing time series data, and are generally presentable to end users for confident decision making (11). Using the historical case report data provided by the CDC, future Lyme disease infection was forecasted using Holt's Linear Trend Method, an extension of simple exponential smoothing.
+
+## Current Data
+``` {r packages, echo = FALSE, message = FALSE}
+#install.packages("tidyverse")
+#install.packages("readxl")
+#install.packages("data.table")
+#install.packages("forecast")
+#install.packages("kableExtra")
+#install.packages("float")
+library(tidyverse)
+library(readxl)
+library(data.table)
+library(forecast)
+library(knitr)
+library(kableExtra)
+library(float)
+```
+
+```{r cleaningdata, echo = FALSE}
+# Cleaning and Organizing CDC Lyme Data
+cdclymedata <- read.csv(url("https://www.cdc.gov/lyme/resources/datasurveillance/LD-Case-Counts-by-County-00-19.csv"))
+
+cdclymedata$Ctyname <- NULL
+cdclymedata$STCODE <- NULL
+cdclymedata$CTYCODE <- NULL
+cdclymedata <- aggregate(. ~ Stname, cdclymedata, sum)
+cdclymedata[,22] <- rowSums(cdclymedata[2:21])
+names(cdclymedata)[names(cdclymedata) == 'V22'] <- 'Total'
+names(cdclymedata)[names(cdclymedata) == 'Stname'] <- 'NAME'
+colnames(cdclymedata) <- sub("Cases","",colnames(cdclymedata))
+
+# Cleaning and Organizing Census Bureau Data
+statecensusdata <- read.csv(url("http://www2.census.gov/programs-surveys/popest/datasets/2010-2019/national/totals/nst-est2019-alldata.csv"))
+
+statecensusdata <- select(statecensusdata, "NAME", "POPESTIMATE2019")
+
+# Merging Census Burea and CDC Data, Calculating Proportions
+alldata <- merge(cdclymedata, statecensusdata, by = "NAME")
+alldata <- alldata %>% mutate(newcol = (Total/POPESTIMATE2019))
+alldata <- alldata %>% arrange(desc(newcol))
+
+# Selecting States
+topthree <- alldata[1:3,]
+```
+From the initial analysis, Connecticut, Vermont, and New Hampshire were selected as the top three states of interest. 
+
+
+The following three graphs illustrate the cumulative incidence of reported cases per year in each respective state from 2000 to 2019. 
+```{r cumulative incidence CT, fig.show="hold", out.width="50%", fig.align = 'center', echo = FALSE}
+# Reported Cases of Lyme Disease by Year in Connecticut, 2000 - 2019
+ct <- topthree[1,2:21]
+ct <-t(ct)
+cttable <- as.data.table(ct, TRUE)
+colnames(cttable) <- c("Year (20--)","Cases")
+cttable$Year <- sub("20", "", cttable$Year)
+
+theme_set(theme_minimal())
+
+ctcases <- ggplot(data = cttable, aes(x = Year , y = Cases )) +
+  geom_bar(stat="identity", width=0.8, fill = "seagreen4") +
+  ggtitle("Reported Cases of Lyme Disease by Year \nin Connecticut, 2000 - 2019") +
+  theme(plot.title = element_text(hjust = 0.5))
+ctcases
+```
+
+```{r cumulative incidence VT and NH, fig.show="hold", out.width="50%", echo = FALSE}
+# Reported Cases of Lyme Disease by Year in Vermont, 2000 - 2019
+vt <- topthree[2,2:21]
+vt <-t(vt)
+vttable <- as.data.table(vt, TRUE)
+colnames(vttable) <- c("Year (20--)","Cases")
+vttable$Year <- sub("20", "", vttable$Year)
+
+vtcases <- ggplot(data = vttable, aes(x = Year , y = Cases )) +
+  geom_bar(stat="identity", width=0.8, fill = "indianred4") +
+  ggtitle("Reported Cases of Lyme Disease by Year \nin Vermont, 2000 - 2019") +
+  theme(plot.title = element_text(hjust = 0.5))
+vtcases
+
+# Reported Cases of Lyme Disease by Year in New Hampshire, 2000 - 2019
+nh <- topthree[3,2:21]
+nh <-t(nh)
+nhtable <- as.data.table(nh, TRUE)
+colnames(nhtable) <- c("Year (20--)","Cases")
+nhtable$Year <- sub("20", "", nhtable$Year)
+
+nhcases <- ggplot(data = nhtable, aes(x = Year , y = Cases )) +
+  geom_bar(stat="identity", width=0.8, fill = "darkslategrey") +
+  ggtitle("Reported Cases of Lyme Disease by Year \nin New Hampshire, 2000 - 2019") +
+  theme(plot.title = element_text(hjust = 0.5))
+nhcases
+```
+
+## Holt's Linear Trend {.tabset}
+### Connecticut
+```{r lymemodelCT, echo = FALSE, fig.show="hold", out.width="50%", message = FALSE, warning = FALSE}
+# Connecticut Cases
+ct <- topthree[1,2:21]
+ct <-t(ct)
+cttable <- as.data.table(ct, TRUE)
+colnames(cttable) <- c("Year","Cases")
+
+cttimeseries <- ts(cttable[, -1], start = cttable[1, 1], end = cttable[nrow (cttable), 1] )
+ctcholt <- window(cttimeseries, start = 2000, end = 2019)
+fcctc <- holt(ctcholt, h=10)
+fcctc2 <- holt(ctcholt, damped=TRUE, phi = 0.9, h=10)
+
+autoplot(ctcholt) +
+  autolayer(fcctc, series="Holt's method", PI=FALSE) +
+  autolayer(fcctc2, series="Damped Holt's method", PI=FALSE) +
+  ggtitle("Forecast of Cases in Connecticut, 2019-2029") + 
+  xlab("Year") +
+  ylab("Cases") +
+  guides(colour=guide_legend(title="Forecast"))
+
+#Connecticut Cases/Persons
+ctc <- topthree[1,12:21]
+ctc <-t(ctc)
+ctctable <- as.data.table(ct, TRUE)
+colnames(ctctable) <- c("Year","Cases")
+
+statecensusdata <- read.csv(url("http://www2.census.gov/programs-surveys/popest/datasets/2010-2019/national/totals/nst-est2019-alldata.csv"))
+
+statecensusdata <- select(statecensusdata, "NAME", "ESTIMATESBASE2010", "POPESTIMATE2011", "POPESTIMATE2012", "POPESTIMATE2013", "POPESTIMATE2014", "POPESTIMATE2015", "POPESTIMATE2016", "POPESTIMATE2017", "POPESTIMATE2018", "POPESTIMATE2019")
+
+ctpop <- statecensusdata[12,]
+ctpop$NAME <- NULL
+ctpop <-t(ctpop)
+ctpoptable <- as.data.table(ctpop, TRUE)
+colnames(ctpoptable) <- c("Year","Pop")
+ctpoptable$Year <- sub("POPESTIMATE", "", ctpoptable$Year)
+ctpoptable$Year <- sub("ESTIMATESBASE", "", ctpoptable$Year)
+
+ctalldata <- merge(ctctable, ctpoptable, by = "Year")
+ctalldata <- ctalldata %>% mutate(newcol = (Cases/Pop))
+ctalldata$Cases <- NULL
+ctalldata$Pop <- NULL
+colnames(ctalldata) <- c("Year", "Cases/Person")
+
+ctcptimeseries <- ts(ctalldata[, -1], start = ctalldata[1, 1], end = ctalldata[nrow (ctalldata), 1] )
+ctcpholt <- window(ctcptimeseries, start=2000)
+fcctcp <- holt(ctcpholt, h=10)
+fcctcp2 <- holt(ctcpholt, damped=TRUE, phi = 0.9, h=10)
+
+autoplot(ctcpholt) +
+  autolayer(fcctcp, series="Holt's method", PI=FALSE) +
+  autolayer(fcctcp2, series="Damped Holt's method", PI=FALSE) +
+  ggtitle("Forecast of Cases per Person in Connecticut, 2019-2029") + 
+  xlab("Year") + ylab("Cases per Person") +
+  guides(colour=guide_legend(title="Forecast"))
+  
+```
+
+### Vermont
+```{r lymemodelVT, echo = FALSE, fig.show="hold", out.width="50%", message = FALSE, warning = FALSE}
+# Vermont Cases Graph
+vt <- topthree[2,2:21]
+vt <-t(vt)
+vttable <- as.data.table(vt, TRUE)
+colnames(vttable) <- c("Year","Cases")
+
+vttimeseries <- ts(vttable[, -1], start = vttable[1, 1], end = vttable[nrow (vttable), 1] )
+vtcholt <- window(vttimeseries, start = 2000, end = 2019)
+fcvtc <- holt(vtcholt, h=10)
+fcvtc2 <- holt(vtcholt, damped=TRUE, phi = 0.9, h=10)
+
+autoplot(vtcholt) +
+  autolayer(fcvtc, series="Holt's method", PI=FALSE) +
+  autolayer(fcvtc2, series="Damped Holt's method", PI=FALSE) +
+  ggtitle("Forecast of Cases in Vermont, 2019-2029") + 
+  xlab("Year") +
+  ylab("Cases") +
+  guides(colour=guide_legend(title="Forecast"))
+
+# Vermont Cases/Person Graph
+vtc <- topthree[1,12:21]
+vtc <-t(vtc)
+vtctable <- as.data.table(vt, TRUE)
+colnames(vtctable) <- c("Year","Cases")
+
+statecensusdata <- read.csv(url("http://www2.census.gov/programs-surveys/popest/datasets/2010-2019/national/totals/nst-est2019-alldata.csv"))
+
+statecensusdata <- select(statecensusdata, "NAME", "ESTIMATESBASE2010", "POPESTIMATE2011", "POPESTIMATE2012", "POPESTIMATE2013", "POPESTIMATE2014", "POPESTIMATE2015", "POPESTIMATE2016", "POPESTIMATE2017", "POPESTIMATE2018", "POPESTIMATE2019")
+
+vtpop <- statecensusdata[51,]
+vtpop$NAME <- NULL
+vtpop <-t(vtpop)
+vtpoptable <- as.data.table(vtpop, TRUE)
+colnames(vtpoptable) <- c("Year","Pop")
+vtpoptable$Year <- sub("POPESTIMATE", "", vtpoptable$Year)
+vtpoptable$Year <- sub("ESTIMATESBASE", "", vtpoptable$Year)
+
+vtalldata <- merge(vtctable, vtpoptable, by = "Year")
+vtalldata <- vtalldata %>% mutate(newcol = (Cases/Pop))
+vtalldata$Cases <- NULL
+vtalldata$Pop <- NULL
+colnames(vtalldata) <- c("Year", "Cases/Person")
+
+vtcptimeseries <- ts(vtalldata[, -1], start = vtalldata[1, 1], end = vtalldata[nrow (vtalldata), 1] )
+vtcpholt <- window(vtcptimeseries, start=2000)
+fcvtcp <- holt(vtcpholt, h=10)
+fcvtcp2 <- holt(vtcpholt, damped=TRUE, phi = 0.9, h=10)
+
+autoplot(vtcpholt) +
+  autolayer(fcvtcp, series="Holt's method", PI=FALSE) +
+  autolayer(fcvtcp2, series="Damped Holt's method", PI=FALSE) +
+  ggtitle("Forecast of Cases per Person in Vermont, 2019-2029") + 
+  xlab("Year") + ylab("Cases per Person") +
+  guides(colour=guide_legend(title="Forecast"))
+  
+```
+  
+### New Hampshire
+```{r lymemodelNH, echo = FALSE, fig.show="hold", out.width="50%", message = FALSE, warning = FALSE}
+# New Hampshire Cases
+nh <- topthree[3,2:21]
+nh <-t(nh)
+nhtable <- as.data.table(nh, TRUE)
+colnames(nhtable) <- c("Year","Cases")
+
+nhtimeseries <- ts(nhtable[, -1], start = nhtable[1, 1], end = nhtable[nrow (nhtable), 1] )
+nhcholt <- window(nhtimeseries, start = 2000, end = 2019)
+fcnhc <- holt(nhcholt, h=10)
+fcnhc2 <- holt(nhcholt, damped=TRUE, phi = 0.9, h=10)
+
+autoplot(nhcholt) +
+  autolayer(fcnhc, series="Holt's method", PI=FALSE) +
+  autolayer(fcnhc2, series="Damped Holt's method", PI=FALSE) +
+  ggtitle("Forecast of Cases in New Hampshire, 2019-2029") + 
+  xlab("Year") +
+  ylab("Cases") +
+  guides(colour=guide_legend(title="Forecast"))
+
+# New Hampshire Cases/Person
+nhc <- topthree[1,12:21]
+nhc <-t(nhc)
+nhctable <- as.data.table(vt, TRUE)
+colnames(nhctable) <- c("Year","Cases")
+
+statecensusdata <- read.csv(url("http://www2.census.gov/programs-surveys/popest/datasets/2010-2019/national/totals/nst-est2019-alldata.csv"))
+
+statecensusdata <- select(statecensusdata, "NAME", "ESTIMATESBASE2010", "POPESTIMATE2011", "POPESTIMATE2012", "POPESTIMATE2013", "POPESTIMATE2014", "POPESTIMATE2015", "POPESTIMATE2016", "POPESTIMATE2017", "POPESTIMATE2018", "POPESTIMATE2019")
+
+nhpop <- statecensusdata[35,]
+nhpop$NAME <- NULL
+nhpop <-t(nhpop)
+nhpoptable <- as.data.table(nhpop, TRUE)
+colnames(nhpoptable) <- c("Year","Pop")
+nhpoptable$Year <- sub("POPESTIMATE", "", nhpoptable$Year)
+nhpoptable$Year <- sub("ESTIMATESBASE", "", nhpoptable$Year)
+
+nhalldata <- merge(nhctable, nhpoptable, by = "Year")
+nhalldata <- nhalldata %>% mutate(newcol = (Cases/Pop))
+nhalldata$Cases <- NULL
+nhalldata$Pop <- NULL
+colnames(nhalldata) <- c("Year", "Cases/Person")
+
+nhcptimeseries <- ts(nhalldata[, -1], start = nhalldata[1, 1], end = nhalldata[nrow (nhalldata), 1] )
+nhcpholt <- window(nhcptimeseries, start=2000)
+fcnhcp <- holt(nhcpholt, h=10)
+fcnhcp2 <- holt(nhcpholt, damped=TRUE, phi = 0.9, h=10)
+
+autoplot(nhcpholt) +
+  autolayer(fcnhcp, series="Holt's method", PI=FALSE) +
+  autolayer(fcnhcp2, series="Damped Holt's method", PI=FALSE) +
+  ggtitle("Forecast of Cases per Person in New Hampshire, 2019-2029") + 
+  xlab("Year") + ylab("Cases per Person") +
+  guides(colour=guide_legend(title="Forecast"))
+```
+
+##
+
+In each tab, the figure on the left shows Holt's Linear Trend applied to *total number of reported cases in each state (2000–2019)*. 
+
+The figure on the right shows Holt's Linear Trend applied to *number of reported cases per person in each state (2010–2019)*. 
+
+
+## Interpretation
+
+```{r}
+# to be deleted
+# Connecticut
+kbl(fcctc)
+kbl(fcctc2)
+kbl(fcctcp)
+kbl(fcctcp2)
+
+# Vermont
+kbl(fcvtc)
+kbl(fcvtc2)
+kbl(fcvtcp)
+kbl(fcvtcp2)
+
+# New Hampshire
+kbl(fcnhc)
+kbl(fcnhc2)
+kbl(fcnhcp)
+kbl(fcnhcp2)
+
+```
+
+## Public Health Action
+adasd
+
+## References
+1.	Steere AC, Coburn J, Glickstein L. The emergence of Lyme disease. J Clin Invest. 2004;113(8):1093-1101. doi:10.1172/JCI21681
+2.	Stanek G, Wormser GP, Gray J, Strle F. Lyme borreliosis. Lancet 2012;379:461-473
+3.	Lane RS, Piesman J, Burgdorfer W. Lyme borreliosis: relation of its causative agent to its vectors and hosts in North America and Europe. Annu Rev Entomol 1991;36:587-609
+4.	Steere AC, Sikand VK. The presenting manifestations of Lyme disease and the outcomes of treatment. N Engl J Med 2003;348:2472-2474
+5.	Schwartz, A. M., Hinckley, A. F., Mead, P. S., Hook, S. A., & Kugeler, K. J. (2017). Surveillance for Lyme Disease - United States, 2008-2015. Morbidity and mortality weekly report. Surveillance summaries (Washington, D.C. : 2002), 66(22), 1–12. https://doi.org/10.15585/mmwr.ss6622a1
+6.	Dennis, D.T., and Hayes, E.B. 2002. Epidemiology of Lyme Borreliosis. In Lyme borreliosis: biology, epidemiology and control. O. Kahl, J.S. Gray, R.S. Lane, and G. Stanek, editors. CABI Publishing. Oxford, United Kingdom. 251–280.
+7.	Centers for Disease Control and Prevention. Lyme disease data (https://www.cdc.gov/lyme/datasurveillance/index.html).
+8.	Stone BL, Tourand Y, Brissette CA. Brave New Worlds: The Expanding Universe of Lyme Disease. Vector Borne Zoonotic Dis. 2017;17(9):619-629. doi:10.1089/vbz.2017.2127
+9.	Stone BL, Tourand Y, Brissette CA. Brave New Worlds: The Expanding Universe of Lyme Disease. Vector Borne Zoonotic Dis. 2017;17(9):619-629. doi:10.1089/vbz.2017.2127
+10.	Tick-Borne Disease Working Group. 2020 Report to Congress (https://www.hhs.gov/sites/default/files/tbdwg-2020-report_to-ongress-final.pdf). 
+11.	Zhang X, Zhang T, Young AA, Li X. Applications and Comparisons of Four Time Series Models in Epidemiological Surveillance Data. PLOS ONE. 2014; 9(2): e88075. https://doi.org/10.1371/journal.pone.0088075
