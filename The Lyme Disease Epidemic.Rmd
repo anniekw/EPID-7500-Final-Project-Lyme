@@ -14,7 +14,7 @@ output:
 ---
 ## Introduction
 
-Lyme disease was initially described and identified in 1977 due to a peculiar epidemic of pediatric inflammatory arthritis in the Lyme, Connecticut area. The infectious agent for this mysterious disease, a bacteria called Borrelia burgdorferi, was later isolated in 1981 and proven to be the spirochetal etiology of the illness after being cultured from patients with early Lyme disease (1). Lyme disease is a zoonotic, vector-borne disease that is transmitted by certain Ixodid ticks (2). Transmission occurs when the ticks feed on an infected animal and acquire B. burgdorferi during any stage of their lifecycle, though transmission is more likely in the nymphal stage, and transmit the bacteria to a human during a subsequent feeding (3). 
+Lyme disease was initially described and identified in 1977 due to a peculiar epidemic of pediatric inflammatory arthritis in the Lyme, Connecticut area. The infectious agent for this mysterious disease, a bacteria called *Borrelia burgdorferi*, was later isolated in 1981 and proven to be the spirochetal etiology of the illness after being cultured from patients with early Lyme disease (1). Lyme disease is a zoonotic, vector-borne disease that is transmitted by certain Ixodid ticks (2). Transmission occurs when the ticks feed on an infected animal and acquire *B. burgdorferi* during any stage of their lifecycle, though transmission is more likely in the nymphal stage, and transmit the bacteria to a human during a subsequent feeding (3). 
 
 The most common sign of Lyme disease is erythema migrans, a small erythematous papule or macule that emerges at the site of the tick bite and subsequently enlarges. This lesion can be asymptomatic, mildly pruritic, painful, or mildly disseminated to other sites on the skin. Other signs and symptoms of Lyme disease include fever, neurologic conditions, carditis, meningitis, and arthritis. Symptoms of Lyme disease can be disabling and persist for 6 months or longer (4).
 
@@ -32,7 +32,7 @@ The CDC developed a public use data set providing the number of reported cases b
 
 Given the complex nature of Lyme disease transmission and dynamics, R0 and serial intervals have not been widely agreed upon in literature. However, many various statistical methods have previously been used to forecast infectious disease incidence without the use of R0 and serial intervals, such as regression and exponential smoothing, or autoregressive integrated moving average models. Decomposition methods (regression and exponential smoothing) are typically the most traditional methods when analyzing time series data, and are generally presentable to end users for confident decision making (11). Using the historical case report data provided by the CDC, future Lyme disease infection was forecasted using Holt's Linear Trend Method, an extension of simple exponential smoothing.
 
-## Current Data
+## Current Data {.tabset}
 ``` {r packages, echo = FALSE, message = FALSE}
 #install.packages("tidyverse")
 #install.packages("readxl")
@@ -79,7 +79,9 @@ From the initial analysis, Connecticut, Vermont, and New Hampshire were selected
 
 
 The following three graphs illustrate the cumulative incidence of reported cases per year in each respective state from 2000 to 2019. 
-```{r cumulative incidence CT, fig.show="hold", out.width="50%", fig.align = 'center', echo = FALSE}
+
+### Connecticut
+```{r, echo = FALSE}
 # Reported Cases of Lyme Disease by Year in Connecticut, 2000 - 2019
 ct <- topthree[1,2:21]
 ct <-t(ct)
@@ -96,7 +98,8 @@ ctcases <- ggplot(data = cttable, aes(x = Year , y = Cases )) +
 ctcases
 ```
 
-```{r cumulative incidence VT and NH, fig.show="hold", out.width="50%", echo = FALSE}
+### Vermont
+```{r, echo = FALSE}
 # Reported Cases of Lyme Disease by Year in Vermont, 2000 - 2019
 vt <- topthree[2,2:21]
 vt <-t(vt)
@@ -109,7 +112,10 @@ vtcases <- ggplot(data = vttable, aes(x = Year , y = Cases )) +
   ggtitle("Reported Cases of Lyme Disease by Year \nin Vermont, 2000 - 2019") +
   theme(plot.title = element_text(hjust = 0.5))
 vtcases
+```
 
+### New Hampshire
+```{r, echo = FALSE}
 # Reported Cases of Lyme Disease by Year in New Hampshire, 2000 - 2019
 nh <- topthree[3,2:21]
 nh <-t(nh)
@@ -124,7 +130,8 @@ nhcases <- ggplot(data = nhtable, aes(x = Year , y = Cases )) +
 nhcases
 ```
 
-## Holt's Linear Trend {.tabset}
+## Models {.tabset}
+
 ### Connecticut
 ```{r lymemodelCT, echo = FALSE, fig.show="hold", out.width="50%", message = FALSE, warning = FALSE}
 # Connecticut Cases
@@ -165,7 +172,7 @@ ctpoptable$Year <- sub("POPESTIMATE", "", ctpoptable$Year)
 ctpoptable$Year <- sub("ESTIMATESBASE", "", ctpoptable$Year)
 
 ctalldata <- merge(ctctable, ctpoptable, by = "Year")
-ctalldata <- ctalldata %>% mutate(newcol = (Cases/Pop))
+ctalldata <- ctalldata %>% mutate(newcol = ((Cases/Pop)*100000))
 ctalldata$Cases <- NULL
 ctalldata$Pop <- NULL
 colnames(ctalldata) <- c("Year", "Cases/Person")
@@ -179,7 +186,7 @@ autoplot(ctcpholt) +
   autolayer(fcctcp, series="Holt's method", PI=FALSE) +
   autolayer(fcctcp2, series="Damped Holt's method", PI=FALSE) +
   ggtitle("Forecast of Cases per Person in Connecticut, 2019-2029") + 
-  xlab("Year") + ylab("Cases per Person") +
+  xlab("Year") + ylab("Cases per 100,000") +
   guides(colour=guide_legend(title="Forecast"))
   
 ```
@@ -224,7 +231,7 @@ vtpoptable$Year <- sub("POPESTIMATE", "", vtpoptable$Year)
 vtpoptable$Year <- sub("ESTIMATESBASE", "", vtpoptable$Year)
 
 vtalldata <- merge(vtctable, vtpoptable, by = "Year")
-vtalldata <- vtalldata %>% mutate(newcol = (Cases/Pop))
+vtalldata <- vtalldata %>% mutate(newcol = ((Cases/Pop)*100000))
 vtalldata$Cases <- NULL
 vtalldata$Pop <- NULL
 colnames(vtalldata) <- c("Year", "Cases/Person")
@@ -238,7 +245,7 @@ autoplot(vtcpholt) +
   autolayer(fcvtcp, series="Holt's method", PI=FALSE) +
   autolayer(fcvtcp2, series="Damped Holt's method", PI=FALSE) +
   ggtitle("Forecast of Cases per Person in Vermont, 2019-2029") + 
-  xlab("Year") + ylab("Cases per Person") +
+  xlab("Year") + ylab("Cases per 100,000") +
   guides(colour=guide_legend(title="Forecast"))
   
 ```
@@ -283,7 +290,7 @@ nhpoptable$Year <- sub("POPESTIMATE", "", nhpoptable$Year)
 nhpoptable$Year <- sub("ESTIMATESBASE", "", nhpoptable$Year)
 
 nhalldata <- merge(nhctable, nhpoptable, by = "Year")
-nhalldata <- nhalldata %>% mutate(newcol = (Cases/Pop))
+nhalldata <- nhalldata %>% mutate(newcol = ((Cases/Pop)*100000))
 nhalldata$Cases <- NULL
 nhalldata$Pop <- NULL
 colnames(nhalldata) <- c("Year", "Cases/Person")
@@ -297,7 +304,7 @@ autoplot(nhcpholt) +
   autolayer(fcnhcp, series="Holt's method", PI=FALSE) +
   autolayer(fcnhcp2, series="Damped Holt's method", PI=FALSE) +
   ggtitle("Forecast of Cases per Person in New Hampshire, 2019-2029") + 
-  xlab("Year") + ylab("Cases per Person") +
+  xlab("Year") + ylab("Cases per 100,000") +
   guides(colour=guide_legend(title="Forecast"))
 ```
 
@@ -305,35 +312,35 @@ autoplot(nhcpholt) +
 
 In each tab, the figure on the left shows Holt's Linear Trend applied to *total number of reported cases in each state (2000–2019)*. 
 
-The figure on the right shows Holt's Linear Trend applied to *number of reported cases per person in each state (2010–2019)*. 
+The figure on the right shows Holt's Linear Trend applied to *number of reported cases per 100,000 persons in each state (2010–2019)*. 
 
+---
 
-## Interpretation
+The following list summarizes the predicted values for either a [Holt’s or Damped Holt’s] forecast in 2029. 
 
-```{r}
-# to be deleted
-# Connecticut
-kbl(fcctc)
-kbl(fcctc2)
-kbl(fcctcp)
-kbl(fcctcp2)
+* In Connecticut:
+The *total amount of Lyme disease cases* is expected to decrease to [205 or 1168]. 
+The *amount of reported cases per person* is also expected to decrease to [0 per 100,000 residents or 26.5 per 100,000 residents]. 
 
-# Vermont
-kbl(fcvtc)
-kbl(fcvtc2)
-kbl(fcvtcp)
-kbl(fcvtcp2)
+* In Vermont: 
+The *total amount of Lyme disease cases* is expected to increase to [1447 or 1060]. 
+The *amount of reported cases per person* is also expected to increase to [227.7 per 100,000 residents or 171.1 per 100,000 residents]. 
 
-# New Hampshire
-kbl(fcnhc)
-kbl(fcnhc2)
-kbl(fcnhcp)
-kbl(fcnhcp2)
+* In New Hampshire: 
+The *total amount of Lyme disease cases* is expected to increase to [3330 or 1847]. 
+The *amount of reported cases per person* is also expected to increase to [108.9 per 100,000 residents or 81.6 per 100,000 residents]. 
 
-```
+## Limitations
+As a result of the complex transmission and infection dynamic of this vector-borne disease, projection of future disease incidence may be more complicated than most other diseases without an established R0. Transmission dynamics are variable geographically and temporally, and many factors must be considered when attempting to create any sort of prediction or projection for tick-borne diseases. The method used in this analysis is popular for many different infectious disease forecasts, but is quite limiting when it comes to this disease due to the exclusion of these significant factors. Additionally, Damped Holt's method is often used in conjunction with the normal Holt's method to provide softened forecasts and correct for overestimation. However, Damped Holt's method may actually be underestimating the values in these projections. The values derived from the non-damped method may be more pertinent to look at. 
+
+Overall, we are assuming that the spread of Lyme disease is predictable and stable, and that any future trends are deducible through the short amount of historical data that is available to us. With the use of an extended exponential smoothing technique to forecast this time series of reported cases, we are limited by the accuracy and reliability of the data. As noted earlier, although 30,000 cases are reported annually to the CDC, it is estimated that actually nearly half a million individuals in the United States are contracting the disease. This indicates that incidence of Lyme disease is being under-detected and under-reported 16-fold. This huge gap is certain to impact any sort of projection or forecasting being performed. 
 
 ## Public Health Action
-adasd
+This projection of Lyme disease incidence shows an alarming prediction of increase in cases for at least two endemic states if no further interventions are placed. Lyme disease is preventable and treatable, but many individuals are still getting the disease and suffering from its symptoms. In order to tackle this epidemic, further action must be taken. Climate change has allowed for the tick vectors that drive this disease to spread northward and outward, infecting other animal reservoirs and perpetuating the presence of the infectious agent. From a policy standpoint, government agencies must be supportive of policies and actions that combat climate change and research its effects on vectors. 
+
+Furthermore, since Lyme is preventable and treatable, health professionals and organizations should spread awareness and educate the public on methods of protection against tick-bites. This includes regular usage of insect repellent, treating fabric with permethrin when venturing outdoors, instructing the public on how to perform tick checks and the symptoms associated with the disease, and providing adequate resources to seek a diagnosis when symptoms are detected. Finally, given the massive discrepancy between cases that are reported and estimated actual cases, there must be more funding and infrastructure placed in support of surveillance and diagnosis of the disease.
+
+Without an accurate idea of how severe the Lyme disease epidemic has become, it is difficult to adequately control and mitigate it. This analysis shows the urgent need for proactive intervention, and emphasizes the potential for this epidemic to grow out of control. 
 
 ## References
 1.	Steere AC, Coburn J, Glickstein L. The emergence of Lyme disease. J Clin Invest. 2004;113(8):1093-1101. doi:10.1172/JCI21681
